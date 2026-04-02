@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+# Wrapper script for tmux-agents CLI.
+# Symlink this into your PATH, e.g.:
+#   ln -s /path/to/tmux-agents/bin/tmux-agents ~/bin/tmux-agents
+
+SCRIPT_DIR="$(cd "$(dirname "$(readlink -f "$0" 2>/dev/null || realpath "$0")")" && pwd)"
+PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
+VENV="$PROJECT_DIR/.venv"
+
+if [ ! -d "$VENV" ]; then
+  echo "Error: venv not found at $VENV" >&2
+  echo "Run: python3 -m venv $VENV && $VENV/bin/pip install -e '$PROJECT_DIR'" >&2
+  exit 1
+fi
+
+exec "$VENV/bin/tmux-agents" "$@"

@@ -1,0 +1,71 @@
+# serializer version: 1
+# name: TestConfig.test_schema_snapshot
+  dict({
+    '$defs': dict({
+      'LoggingConfig': dict({
+        'description': 'Logging configuration.',
+        'properties': dict({
+          'format': dict({
+            'default': 'json',
+            'title': 'Format',
+            'type': 'string',
+          }),
+          'level': dict({
+            'default': 'INFO',
+            'title': 'Level',
+            'type': 'string',
+          }),
+        }),
+        'title': 'LoggingConfig',
+        'type': 'object',
+      }),
+      'McpConfig': dict({
+        'description': 'MCP server configuration.',
+        'properties': dict({
+          'http_host': dict({
+            'default': '127.0.0.1',
+            'title': 'Http Host',
+            'type': 'string',
+          }),
+          'http_port': dict({
+            'default': 8766,
+            'title': 'Http Port',
+            'type': 'integer',
+          }),
+          'safe_mode': dict({
+            'default': True,
+            'title': 'Safe Mode',
+            'type': 'boolean',
+          }),
+        }),
+        'title': 'McpConfig',
+        'type': 'object',
+      }),
+    }),
+    'description': 'Root configuration object.',
+    'properties': dict({
+      'extra_socket_names': dict({
+        'items': dict({
+          'type': 'string',
+        }),
+        'title': 'Extra Socket Names',
+        'type': 'array',
+      }),
+      'extra_socket_paths': dict({
+        'items': dict({
+          'type': 'string',
+        }),
+        'title': 'Extra Socket Paths',
+        'type': 'array',
+      }),
+      'logging': dict({
+        '$ref': '#/$defs/LoggingConfig',
+      }),
+      'mcp': dict({
+        '$ref': '#/$defs/McpConfig',
+      }),
+    }),
+    'title': 'TmuxAgentsConfig',
+    'type': 'object',
+  })
+# ---

@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "tmux-agents": {
+      "command": "/Volumes/My Shared Files/sandbox/projects/tmux-agents/.venv/bin/tmux-agents",
+      "args": ["mcp", "serve-stdio"]
+    }
+  }
+}

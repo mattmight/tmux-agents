@@ -1,0 +1,74 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "tmux-agents"
+dynamic = ["version"]
+description = "Local-first tmux agent orchestration with CLI and MCP server"
+readme = "README.md"
+license = "MIT"
+requires-python = ">=3.11"
+authors = [
+    { name = "Matt Might" },
+]
+keywords = ["tmux", "mcp", "agents", "claude"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: POSIX :: Linux",
+    "Operating System :: MacOS",
+]
+
+dependencies = [
+    "click>=8.1",
+    "pydantic>=2.0",
+    "structlog>=24.1",
+    "mcp>=1.0",
+    "libtmux>=0.37",
+    "psutil>=5.9",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+    "pytest-asyncio>=0.24",
+    "syrupy>=4.6",
+    "ruff>=0.4",
+    "mypy>=1.10",
+]
+
+[project.scripts]
+tmux-agents = "tmux_agents.cli.main:cli"
+
+[project.urls]
+Homepage = "https://github.com/mattmight/tmux-agents"
+Repository = "https://github.com/mattmight/tmux-agents"
+"Bug Tracker" = "https://github.com/mattmight/tmux-agents/issues"
+
+[tool.hatch.version]
+path = "src/tmux_agents/__about__.py"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/tmux_agents"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+
+[tool.ruff]
+target-version = "py311"
+line-length = 99
+src = ["src"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "N", "UP", "B", "SIM", "RUF"]
+
+[tool.mypy]
+python_version = "3.11"
+strict = true
+warn_return_any = true
+warn_unused_configs = true

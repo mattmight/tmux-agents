@@ -1,0 +1,943 @@
+# serializer version: 1
+# name: TestAgentInfo.test_schema_snapshot
+  dict({
+    '$defs': dict({
+      'Confidence': dict({
+        'description': 'Detection confidence level.',
+        'enum': list([
+          'strong',
+          'moderate',
+          'weak',
+          'none',
+        ]),
+        'title': 'Confidence',
+        'type': 'string',
+      }),
+      'DetectionSource': dict({
+        'description': 'How an agent was detected.',
+        'enum': list([
+          'explicit',
+          'process_tree',
+          'tmux_hint',
+          'none',
+        ]),
+        'title': 'DetectionSource',
+        'type': 'string',
+      }),
+    }),
+    'description': 'Agent detection and classification data for a pane.',
+    'properties': dict({
+      'confidence': dict({
+        '$ref': '#/$defs/Confidence',
+        'default': 'none',
+      }),
+      'detected_kind': dict({
+        'anyOf': list([
+          dict({
+            'type': 'string',
+          }),
+          dict({
+            'type': 'null',
+          }),
+        ]),
+        'default': None,
+        'title': 'Detected Kind',
+      }),
+      'evidence': dict({
+        'additionalProperties': True,
+        'title': 'Evidence',
+        'type': 'object',
+      }),
+      'hook_state': dict({
+        'anyOf': list([
+          dict({
+            'additionalProperties': True,
+            'type': 'object',
+          }),
+          dict({
+            'type': 'null',
+          }),
+        ]),
+        'default': None,
+        'title': 'Hook State',
+      }),
+      'managed': dict({
+        'default': False,
+        'title': 'Managed',
+        'type': 'boolean',
+      }),
+      'profile': dict({
+        'anyOf': list([
+          dict({
+            'type': 'string',
+          }),
+          dict({
+            'type': 'null',
+          }),
+        ]),
+        'default': None,
+        'title': 'Profile',
+      }),
+      'source': dict({
+        '$ref': '#/$defs/DetectionSource',
+        'default': 'none',
+      }),
+    }),
+    'title': 'AgentInfo',
+    'type': 'object',
+  })
+# ---
+# name: TestInventorySnapshot.test_schema_snapshot
+  dict({
+    '$defs': dict({
+      'AgentInfo': dict({
+        'description': 'Agent detection and classification data for a pane.',
+        'properties': dict({
+          'confidence': dict({
+            '$ref': '#/$defs/Confidence',
+            'default': 'none',
+          }),
+          'detected_kind': dict({
+            'anyOf': list([
+              dict({
+                'type': 'string',
+              }),
+              dict({
+                'type': 'null',
+              }),
+            ]),
+            'default': None,
+            'title': 'Detected Kind',
+          }),
+          'evidence': dict({
+            'additionalProperties': True,
+            'title': 'Evidence',
+            'type': 'object',
+          }),
+          'hook_state': dict({
+            'anyOf': list([
+              dict({
+                'additionalProperties': True,
+                'type': 'object',
+              }),
+              dict({
+                'type': 'null',
+              }),
+            ]),
+            'default': None,
+            'title': 'Hook State',
+          }),
+          'managed': dict({
+            'default': False,
+            'title': 'Managed',
+            'type': 'boolean',
+          }),
+          'profile': dict({
+            'anyOf': list([
+              dict({
+                'type': 'string',
+              }),
+              dict({
+                'type': 'null',
+              }),
+            ]),
+            'default': None,
+            'title': 'Profile',
+          }),
+          'source': dict({
+            '$ref': '#/$defs/DetectionSource',
+            'default': 'none',
+          }),
+        }),
+        'title': 'AgentInfo',
+        'type': 'object',
+      }),
+      'Confidence': dict({
+        'description': 'Detection confidence level.',
+        'enum': list([
+          'strong',
+          'moderate',
+          'weak',
+          'none',
+        ]),
+        'title': 'Confidence',
+        'type': 'string',
+      }),
+      'DetectionSource': dict({
+        'description': 'How an agent was detected.',
+        'enum': list([
+          'explicit',
+          'process_tree',
+          'tmux_hint',
+          'none',
+        ]),
+        'title': 'DetectionSource',
+        'type': 'string',
+      }),
+      'PaneDisplay': dict({
+        'description': 'Human-friendly pane information.',
+        'properties': dict({
+          'index': dict({
+            'title': 'Index',
+            'type': 'integer',
+          }),
+          'title': dict({
+            'default': '',
+            'title': 'Title',
+            'type': 'string',
+          }),
+        }),
+        'required': list([
+          'index',
+        ]),
+        'title': 'PaneDisplay',
+        'type': 'object',
+      }),
+      'PaneRef': dict({
+        'description': 'Identity of a tmux pane.',
+        'properties': dict({
+          'id': dict({
+            'description': "Tmux pane ID, e.g. '%12'",
+            'title': 'Id',
+            'type': 'string',
+          }),
+          'index': dict({
+            'description': 'Pane index within its window',
+            'title': 'Index',
+            'type': 'integer',
+          }),
+        }),
+        'required': list([
+          'id',
+          'index',
+        ]),
+        'title': 'PaneRef',
+        'type': 'object',
+      }),
+      'PaneRuntime': dict({
+        'description': 'Tmux-derived runtime facts about a pane.',
+        'properties': dict({
+          'pane_current_command': dict({
+            'anyOf': list([
+              dict({
+                'type': 'string',
+              }),
+              dict({
+                'type': 'null',
+              }),
+            ]),
+            'default': None,
+            'title': 'Pane Current Command',
+          }),
+          'pane_current_path': dict({
+            'anyOf': list([
+              dict({
+                'type': 'string',
+              }),
+              dict({
+                'type': 'null',
+              }),
+            ]),
+            'default': None,
+            'title': 'Pane Current Path',
+          }),
+          'pane_dead': dict({
+            'default': False,
+            'title': 'Pane Dead',
+            'type': 'boolean',
+          }),
+          'pane_height': dict({
+            'anyOf': list([
+              dict({
+                'type': 'integer',
+              }),
+              dict({
+                'type': 'null',
+              }),
+            ]),
+            'default': None,
+            'title': 'Pane Height',
+          }),
+          'pane_pid': dict({
+            'anyOf': list([
+              dict({
+                'type': 'integer',
+              }),
+              dict({
+                'type': 'null',
+              }),
+            ]),
+            'default': None,
+            'title': 'Pane Pid',
+          }),
+          'pane_width': dict({
+            'anyOf': list([
+              dict({
+                'type': 'integer',
+              }),
+              dict({
+                'type': 'null',
+              }),
+            ]),
+            'default': None,
+            'title': 'Pane Width',
+          }),
+        }),
+        'title': 'PaneRuntime',
+        'type': 'object',
+      }),
+      'PaneSnapshot': dict({
+        'description': 'Complete 4-layer snapshot for a pane.',
+        'properties': dict({
+          'agent': dict({
+            '$ref': '#/$defs/AgentInfo',
+          }),
+          'display': dict({
+            '$ref': '#/$defs/PaneDisplay',
+          }),
+          'ref': dict({
+            '$ref': '#/$defs/TargetRef',
+          }),
+          'runtime': dict({
+            '$ref': '#/$defs/PaneRuntime',
+          }),
+        }),
+        'required': list([
+          'ref',
+          'display',
+          'runtime',
+        ]),
+        'title': 'PaneSnapshot',
+        'type': 'object',
+      }),
+      'ServerDisplay': dict({
+        'description': 'Human-friendly server information.',
+        'properties': dict({
+          'session_count': dict({
+            'default': 0,
+            'title': 'Session Count',
+            'type': 'integer',
+          }),
+          'socket_name': dict({
+            'title': 'Socket Name',
+            'type': 'string',
+          }),
+        }),
+        'required': list([
+          'socket_name',
+        ]),
+        'title': 'ServerDisplay',
+        'type': 'object',
+      }),
+      'ServerRef': dict({
+        'description': 'Identity of a tmux server by its socket.',
+        'properties': dict({
+          'socket_name': dict({
+            'description': "Short socket name, e.g. 'default'",
+            'title': 'Socket Name',
+            'type': 'string',
+          }),
+          'socket_path': dict({
+            'description': 'Absolute path to the tmux socket, e.g. /tmp/tmux-501/default',
+            'title': 'Socket Path',
+            'type': 'string',
+          }),
+        }),
+        'required': list([
+          'socket_path',
+          'socket_name',
+        ]),
+        'title': 'ServerRef',
+        'type': 'object',
+      }),
+      'ServerSnapshot': dict({
+        'description': 'Snapshot for a tmux server with child session summaries.',
+        'properties': dict({
+          'display': dict({
+            '$ref': '#/$defs/ServerDisplay',
+          }),
+          'ref': dict({
+            '$ref': '#/$defs/TargetRef',
+          }),
+          'sessions': dict({
+            'items': dict({
+              '$ref': '#/$defs/SessionSnapshot',
+            }),
+            'title': 'Sessions',
+            'type': 'array',
+          }),
+        }),
+        'required': list([
+          'ref',
+          'display',
+        ]),
+        'title': 'ServerSnapshot',
+        'type': 'object',
+      }),
+      'SessionDisplay': dict({
+        'description': 'Human-friendly session information.',
+        'properties': dict({
+          'attached': dict({
+            'default': False,
+            'title': 'Attached',
+            'type': 'boolean',
+          }),
+          'name': dict({
+            'title': 'Name',
+            'type': 'string',
+          }),
+          'window_count': dict({
+            'default': 0,
+            'title': 'Window Count',
+            'type': 'integer',
+          }),
+        }),
+        'required': list([
+          'name',
+        ]),
+        'title': 'SessionDisplay',
+        'type': 'object',
+      }),
+      'SessionRef': dict({
+        'description': 'Identity of a tmux session.',
+        'properties': dict({
+          'id': dict({
+            'description': "Tmux session ID, e.g. '$3'",
+            'title': 'Id',
+            'type': 'string',
+          }),
+          'name': dict({
+            'description': "Session name, e.g. 'auth-refactor'",
+            'title': 'Name',
+            'type': 'string',
+          }),
+        }),
+        'required': list([
+          'id',
+          'name',
+        ]),
+        'title': 'SessionRef',
+        'type': 'object',
+      }),
+      'SessionSnapshot': dict({
+        'description': 'Snapshot for a session with child window summaries.',
+        'properties': dict({
+          'display': dict({
+            '$ref': '#/$defs/SessionDisplay',
+          }),
+          'ref': dict({
+            '$ref': '#/$defs/TargetRef',
+          }),
+          'windows': dict({
+            'items': dict({
+              '$ref': '#/$defs/WindowSnapshot',
+            }),
+            'title': 'Windows',
+            'type': 'array',
+          }),
+        }),
+        'required': list([
+          'ref',
+          'display',
+        ]),
+        'title': 'SessionSnapshot',
+        'type': 'object',
+      }),
+      'TargetRef': dict({
+        'description': '''
+          Full canonical reference for any tmux entity.
+          
+          All four layers are always present for pane-level references.
+          For session-level references, window and pane may be None.
+        ''',
+        'properties': dict({
+          'pane': dict({
+            'anyOf': list([
+              dict({
+                '$ref': '#/$defs/PaneRef',
+              }),
+              dict({
+                'type': 'null',
+              }),
+            ]),
+            'default': None,
+          }),
+          'server': dict({
+            '$ref': '#/$defs/ServerRef',
+          }),
+          'session': dict({
+            'anyOf': list([
+              dict({
+                '$ref': '#/$defs/SessionRef',
+              }),
+              dict({
+                'type': 'null',
+              }),
+            ]),
+            'default': None,
+          }),
+          'window': dict({
+            'anyOf': list([
+              dict({
+                '$ref': '#/$defs/WindowRef',
+              }),
+              dict({
+                'type': 'null',
+              }),
+            ]),
+            'default': None,
+          }),
+        }),
+        'required': list([
+          'server',
+        ]),
+        'title': 'TargetRef',
+        'type': 'object',
+      }),
+      'WindowDisplay': dict({
+        'description': 'Human-friendly window information.',
+        'properties': dict({
+          'index': dict({
+            'title': 'Index',
+            'type': 'integer',
+          }),
+          'name': dict({
+            'title': 'Name',
+            'type': 'string',
+          }),
+          'pane_count': dict({
+            'default': 0,
+            'title': 'Pane Count',
+            'type': 'integer',
+          }),
+        }),
+        'required': list([
+          'name',
+          'index',
+        ]),
+        'title': 'WindowDisplay',
+        'type': 'object',
+      }),
+      'WindowRef': dict({
+        'description': 'Identity of a tmux window.',
+        'properties': dict({
+          'id': dict({
+            'description': "Tmux window ID, e.g. '@7'",
+            'title': 'Id',
+            'type': 'string',
+          }),
+          'index': dict({
+            'description': 'Window index within its session',
+            'title': 'Index',
+            'type': 'integer',
+          }),
+          'name': dict({
+            'description': "Window name, e.g. 'main'",
+            'title': 'Name',
+            'type': 'string',
+          }),
+        }),
+        'required': list([
+          'id',
+          'name',
+          'index',
+        ]),
+        'title': 'WindowRef',
+        'type': 'object',
+      }),
+      'WindowSnapshot': dict({
+        'description': 'Snapshot for a window with child pane summaries.',
+        'properties': dict({
+          'display': dict({
+            '$ref': '#/$defs/WindowDisplay',
+          }),
+          'panes': dict({
+            'items': dict({
+              '$ref': '#/$defs/PaneSnapshot',
+            }),
+            'title': 'Panes',
+            'type': 'array',
+          }),
+          'ref': dict({
+            '$ref': '#/$defs/TargetRef',
+          }),
+        }),
+        'required': list([
+          'ref',
+          'display',
+        ]),
+        'title': 'WindowSnapshot',
+        'type': 'object',
+      }),
+    }),
+    'description': 'Top-level inventory containing all discovered servers.',
+    'properties': dict({
+      'servers': dict({
+        'items': dict({
+          '$ref': '#/$defs/ServerSnapshot',
+        }),
+        'title': 'Servers',
+        'type': 'array',
+      }),
+      'timestamp': dict({
+        'anyOf': list([
+          dict({
+            'format': 'date-time',
+            'type': 'string',
+          }),
+          dict({
+            'type': 'null',
+          }),
+        ]),
+        'default': None,
+        'title': 'Timestamp',
+      }),
+    }),
+    'title': 'InventorySnapshot',
+    'type': 'object',
+  })
+# ---
+# name: TestPaneSnapshot.test_schema_snapshot
+  dict({
+    '$defs': dict({
+      'AgentInfo': dict({
+        'description': 'Agent detection and classification data for a pane.',
+        'properties': dict({
+          'confidence': dict({
+            '$ref': '#/$defs/Confidence',
+            'default': 'none',
+          }),
+          'detected_kind': dict({
+            'anyOf': list([
+              dict({
+                'type': 'string',
+              }),
+              dict({
+                'type': 'null',
+              }),
+            ]),
+            'default': None,
+            'title': 'Detected Kind',
+          }),
+          'evidence': dict({
+            'additionalProperties': True,
+            'title': 'Evidence',
+            'type': 'object',
+          }),
+          'hook_state': dict({
+            'anyOf': list([
+              dict({
+                'additionalProperties': True,
+                'type': 'object',
+              }),
+              dict({
+                'type': 'null',
+              }),
+            ]),
+            'default': None,
+            'title': 'Hook State',
+          }),
+          'managed': dict({
+            'default': False,
+            'title': 'Managed',
+            'type': 'boolean',
+          }),
+          'profile': dict({
+            'anyOf': list([
+              dict({
+                'type': 'string',
+              }),
+              dict({
+                'type': 'null',
+              }),
+            ]),
+            'default': None,
+            'title': 'Profile',
+          }),
+          'source': dict({
+            '$ref': '#/$defs/DetectionSource',
+            'default': 'none',
+          }),
+        }),
+        'title': 'AgentInfo',
+        'type': 'object',
+      }),
+      'Confidence': dict({
+        'description': 'Detection confidence level.',
+        'enum': list([
+          'strong',
+          'moderate',
+          'weak',
+          'none',
+        ]),
+        'title': 'Confidence',
+        'type': 'string',
+      }),
+      'DetectionSource': dict({
+        'description': 'How an agent was detected.',
+        'enum': list([
+          'explicit',
+          'process_tree',
+          'tmux_hint',
+          'none',
+        ]),
+        'title': 'DetectionSource',
+        'type': 'string',
+      }),
+      'PaneDisplay': dict({
+        'description': 'Human-friendly pane information.',
+        'properties': dict({
+          'index': dict({
+            'title': 'Index',
+            'type': 'integer',
+          }),
+          'title': dict({
+            'default': '',
+            'title': 'Title',
+            'type': 'string',
+          }),
+        }),
+        'required': list([
+          'index',
+        ]),
+        'title': 'PaneDisplay',
+        'type': 'object',
+      }),
+      'PaneRef': dict({
+        'description': 'Identity of a tmux pane.',
+        'properties': dict({
+          'id': dict({
+            'description': "Tmux pane ID, e.g. '%12'",
+            'title': 'Id',
+            'type': 'string',
+          }),
+          'index': dict({
+            'description': 'Pane index within its window',
+            'title': 'Index',
+            'type': 'integer',
+          }),
+        }),
+        'required': list([
+          'id',
+          'index',
+        ]),
+        'title': 'PaneRef',
+        'type': 'object',
+      }),
+      'PaneRuntime': dict({
+        'description': 'Tmux-derived runtime facts about a pane.',
+        'properties': dict({
+          'pane_current_command': dict({
+            'anyOf': list([
+              dict({
+                'type': 'string',
+              }),
+              dict({
+                'type': 'null',
+              }),
+            ]),
+            'default': None,
+            'title': 'Pane Current Command',
+          }),
+          'pane_current_path': dict({
+            'anyOf': list([
+              dict({
+                'type': 'string',
+              }),
+              dict({
+                'type': 'null',
+              }),
+            ]),
+            'default': None,
+            'title': 'Pane Current Path',
+          }),
+          'pane_dead': dict({
+            'default': False,
+            'title': 'Pane Dead',
+            'type': 'boolean',
+          }),
+          'pane_height': dict({
+            'anyOf': list([
+              dict({
+                'type': 'integer',
+              }),
+              dict({
+                'type': 'null',
+              }),
+            ]),
+            'default': None,
+            'title': 'Pane Height',
+          }),
+          'pane_pid': dict({
+            'anyOf': list([
+              dict({
+                'type': 'integer',
+              }),
+              dict({
+                'type': 'null',
+              }),
+            ]),
+            'default': None,
+            'title': 'Pane Pid',
+          }),
+          'pane_width': dict({
+            'anyOf': list([
+              dict({
+                'type': 'integer',
+              }),
+              dict({
+                'type': 'null',
+              }),
+            ]),
+            'default': None,
+            'title': 'Pane Width',
+          }),
+        }),
+        'title': 'PaneRuntime',
+        'type': 'object',
+      }),
+      'ServerRef': dict({
+        'description': 'Identity of a tmux server by its socket.',
+        'properties': dict({
+          'socket_name': dict({
+            'description': "Short socket name, e.g. 'default'",
+            'title': 'Socket Name',
+            'type': 'string',
+          }),
+          'socket_path': dict({
+            'description': 'Absolute path to the tmux socket, e.g. /tmp/tmux-501/default',
+            'title': 'Socket Path',
+            'type': 'string',
+          }),
+        }),
+        'required': list([
+          'socket_path',
+          'socket_name',
+        ]),
+        'title': 'ServerRef',
+        'type': 'object',
+      }),
+      'SessionRef': dict({
+        'description': 'Identity of a tmux session.',
+        'properties': dict({
+          'id': dict({
+            'description': "Tmux session ID, e.g. '$3'",
+            'title': 'Id',
+            'type': 'string',
+          }),
+          'name': dict({
+            'description': "Session name, e.g. 'auth-refactor'",
+            'title': 'Name',
+            'type': 'string',
+          }),
+        }),
+        'required': list([
+          'id',
+          'name',
+        ]),
+        'title': 'SessionRef',
+        'type': 'object',
+      }),
+      'TargetRef': dict({
+        'description': '''
+          Full canonical reference for any tmux entity.
+          
+          All four layers are always present for pane-level references.
+          For session-level references, window and pane may be None.
+        ''',
+        'properties': dict({
+          'pane': dict({
+            'anyOf': list([
+              dict({
+                '$ref': '#/$defs/PaneRef',
+              }),
+              dict({
+                'type': 'null',
+              }),
+            ]),
+            'default': None,
+          }),
+          'server': dict({
+            '$ref': '#/$defs/ServerRef',
+          }),
+          'session': dict({
+            'anyOf': list([
+              dict({
+                '$ref': '#/$defs/SessionRef',
+              }),
+              dict({
+                'type': 'null',
+              }),
+            ]),
+            'default': None,
+          }),
+          'window': dict({
+            'anyOf': list([
+              dict({
+                '$ref': '#/$defs/WindowRef',
+              }),
+              dict({
+                'type': 'null',
+              }),
+            ]),
+            'default': None,
+          }),
+        }),
+        'required': list([
+          'server',
+        ]),
+        'title': 'TargetRef',
+        'type': 'object',
+      }),
+      'WindowRef': dict({
+        'description': 'Identity of a tmux window.',
+        'properties': dict({
+          'id': dict({
+            'description': "Tmux window ID, e.g. '@7'",
+            'title': 'Id',
+            'type': 'string',
+          }),
+          'index': dict({
+            'description': 'Window index within its session',
+            'title': 'Index',
+            'type': 'integer',
+          }),
+          'name': dict({
+            'description': "Window name, e.g. 'main'",
+            'title': 'Name',
+            'type': 'string',
+          }),
+        }),
+        'required': list([
+          'id',
+          'name',
+          'index',
+        ]),
+        'title': 'WindowRef',
+        'type': 'object',
+      }),
+    }),
+    'description': 'Complete 4-layer snapshot for a pane.',
+    'properties': dict({
+      'agent': dict({
+        '$ref': '#/$defs/AgentInfo',
+      }),
+      'display': dict({
+        '$ref': '#/$defs/PaneDisplay',
+      }),
+      'ref': dict({
+        '$ref': '#/$defs/TargetRef',
+      }),
+      'runtime': dict({
+        '$ref': '#/$defs/PaneRuntime',
+      }),
+    }),
+    'required': list([
+      'ref',
+      'display',
+      'runtime',
+    ]),
+    'title': 'PaneSnapshot',
+    'type': 'object',
+  })
+# ---

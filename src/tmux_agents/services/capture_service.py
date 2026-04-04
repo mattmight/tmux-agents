@@ -5,6 +5,7 @@ incremental reads. Uses tmux capture-pane with -p/-S/-E/-a/-J flags.
 Alternate-screen detection uses #{alternate_on} format variable.
 
 Delta tracking uses in-memory per-pane state with monotonic seq counters.
+State is keyed by (host_or_local, pane_id) to avoid collisions across hosts.
 """
 
 from __future__ import annotations
@@ -28,7 +29,7 @@ from tmux_agents.models import (
     PatternMatch,
     ScreenTarget,
 )
-from tmux_agents.tmux.command_runner import CommandRunner
+from tmux_agents.tmux.command_runner import CommandRunner, get_runner
 
 log = get_logger(__name__)
 
@@ -44,18 +45,23 @@ class _PaneState:
     last_line_count: int = 0
 
 
-_pane_states: dict[str, _PaneState] = {}
+_pane_states: dict[tuple[str, str], _PaneState] = {}
 
 
-def _get_state(pane_id: str) -> _PaneState:
-    if pane_id not in _pane_states:
-        _pane_states[pane_id] = _PaneState()
-    return _pane_states[pane_id]
+def _state_key(pane_id: str, host: str | None = None) -> tuple[str, str]:
+    return (host or "local", pane_id)
 
 
-def reset_pane_state(pane_id: str) -> None:
+def _get_state(pane_id: str, host: str | None = None) -> _PaneState:
+    key = _state_key(pane_id, host)
+    if key not in _pane_states:
+        _pane_states[key] = _PaneState()
+    return _pane_states[key]
+
+
+def reset_pane_state(pane_id: str, host: str | None = None) -> None:
     """Remove tracked state for a pane."""
-    _pane_states.pop(pane_id, None)
+    _pane_states.pop(_state_key(pane_id, host), None)
 
 
 # -- Runner resolution -------------------------------------------------------
@@ -65,13 +71,16 @@ def _get_runner(
     pane_id: str,
     socket_path: str | None = None,
     config: TmuxAgentsConfig | None = None,
+    host: str | None = None,
 ) -> CommandRunner:
     if socket_path:
-        return CommandRunner(socket_path=socket_path)
+        return get_runner(host, socket_path=socket_path)
     from tmux_agents.services.inventory_service import inspect_pane
 
-    snap = inspect_pane(pane_id, config)
-    return CommandRunner(socket_path=snap.ref.server.socket_path)
+    snap = inspect_pane(pane_id, config, host_filter=host)
+    if snap.ref.server.host:
+        return get_runner(snap.ref.server.host, socket_name=snap.ref.server.socket_name)
+    return get_runner(None, socket_path=snap.ref.server.socket_path)
 
 
 # -- Alternate screen detection ----------------------------------------------
@@ -164,14 +173,15 @@ def capture_pane(
     join_wrapped: bool = True,
     socket_path: str | None = None,
     config: TmuxAgentsConfig | None = None,
+    host: str | None = None,
 ) -> CaptureResult:
     """Capture output from a tmux pane."""
-    runner = _get_runner(pane_id, socket_path, config)
+    runner = _get_runner(pane_id, socket_path, config, host)
     from tmux_agents.tmux.command_runner import check_pane_alive
 
     check_pane_alive(runner, pane_id)
     now = datetime.now(UTC)
-    state = _get_state(pane_id)
+    state = _get_state(pane_id, host)
 
     # Stash previous content for delta computation
     state.prev_content = state.last_content
@@ -222,9 +232,10 @@ def read_pane_delta(
     screen: ScreenTarget = ScreenTarget.AUTO,
     socket_path: str | None = None,
     config: TmuxAgentsConfig | None = None,
+    host: str | None = None,
 ) -> DeltaResult:
     """Read incremental output from a pane since a previous capture."""
-    state = _get_state(pane_id)
+    state = _get_state(pane_id, host)
     now = datetime.now(UTC)
 
     # Perform a fresh capture (this updates state and stashes prev_content)
@@ -235,6 +246,7 @@ def read_pane_delta(
         screen=screen,
         socket_path=socket_path,
         config=config,
+        host=host,
     )
 
     new_content = cap.content
@@ -324,6 +336,7 @@ def wait_for_pattern(
     screen: ScreenTarget = ScreenTarget.AUTO,
     socket_path: str | None = None,
     config: TmuxAgentsConfig | None = None,
+    host: str | None = None,
 ) -> PatternMatch:
     """Poll pane output until a regex pattern matches or timeout expires.
 
@@ -335,6 +348,7 @@ def wait_for_pattern(
         screen: Screen target for captures.
         socket_path: Direct socket path.
         config: Config for discovery.
+        host: SSH host alias for remote panes.
 
     Returns:
         PatternMatch with the matched text and line number.
@@ -358,6 +372,7 @@ def wait_for_pattern(
             screen=screen,
             socket_path=socket_path,
             config=config,
+            host=host,
         )
         lines = cap.content.split("\n") if cap.content else []
         for i, line in enumerate(lines):

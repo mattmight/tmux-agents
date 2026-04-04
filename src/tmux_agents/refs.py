@@ -10,7 +10,12 @@ from pydantic import BaseModel, Field
 
 
 class ServerRef(BaseModel):
-    """Identity of a tmux server by its socket."""
+    """Identity of a tmux server by its socket.
+
+    The optional ``host`` field distinguishes remote machines.  When ``None``
+    the server is local.  For remote servers the value is the SSH ``Host``
+    alias from ``~/.ssh/config`` (e.g. ``"enterprise-a"``).
+    """
 
     model_config = {"frozen": True}
 
@@ -18,6 +23,10 @@ class ServerRef(BaseModel):
         ..., description="Absolute path to the tmux socket, e.g. /tmp/tmux-501/default"
     )
     socket_name: str = Field(..., description="Short socket name, e.g. 'default'")
+    host: str | None = Field(
+        default=None,
+        description="SSH Host alias for remote servers, None for local",
+    )
 
 
 class SessionRef(BaseModel):

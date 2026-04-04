@@ -1,8 +1,9 @@
 # CLAUDE.md -- instructions for Claude Code working on tmux-agents
 
 ## Project overview
-tmux-agents is a local-first Python package with CLI + MCP server for discovering,
-monitoring, and orchestrating AI agents running in tmux panes.
+tmux-agents is a Python package with CLI + MCP server for discovering,
+monitoring, and orchestrating AI agents running in tmux panes, both locally
+and on remote machines via SSH.
 
 ## Build and run
 - Python 3.11+ required
@@ -27,7 +28,10 @@ monitoring, and orchestrating AI agents running in tmux panes.
 - `refs.py` -- canonical tmux ref models (frozen, immutable)
 - `models.py` -- 4-layer snapshot models (ref, display, runtime, agent)
 - `errors.py` -- error envelope with codes, context, and typed exceptions
-- `config.py` -- configuration with Pydantic models
+- `config.py` -- configuration with Pydantic models (incl. RemoteHostConfig)
+- `ssh/config_parser.py` -- parse ~/.ssh/config for Host aliases
+- `ssh/runner.py` -- RemoteCommandRunner (SSH transport for remote tmux)
+- `process/remote_inspector.py` -- SSH-based process tree via `ps -eo pid,ppid,comm`
 - `logging.py` -- structured logging, ALWAYS to stderr (never stdout)
 - `cli/main.py` -- Click CLI entrypoint
 - `mcp/` -- MCP server (stdio + HTTP via FastMCP from official mcp SDK)
@@ -54,6 +58,10 @@ monitoring, and orchestrating AI agents running in tmux panes.
 - All tmux read-only probes must use `-N` flag to prevent accidental server creation.
 - tmux 3.2a+ is the enforced minimum version.
 - Unix socket paths on macOS have ~104-char limit; integration tests use `/tmp` with short names.
+- `ServerRef.host` distinguishes local (None) from remote (SSH alias) servers.
+- Use `get_runner(host, *, socket_name, socket_path)` factory to get local or remote runner.
+- RemoteCommandRunner wraps tmux commands in SSH with ControlMaster multiplexing.
+- SSH errors use `SSHError` exception with codes: SSH_CONNECTION_FAILED, SSH_AUTH_FAILED, SSH_HOST_UNKNOWN, SSH_TIMEOUT.
 
 ## CLI commands
 - `tmux-agents list [--kind K] [--socket S] [--json]` -- list all sessions/windows/panes
@@ -71,10 +79,12 @@ monitoring, and orchestrating AI agents running in tmux panes.
 - `tmux-agents channels send --from %0 --to %1 --message "text"` -- inter-pane message
 - `tmux-agents channels read --pane %0` -- read channel message
 - `tmux-agents channels peers` -- list managed panes for messaging
+- `tmux-agents ssh check <HOST>` -- verify SSH connectivity and remote tmux version
+- `tmux-agents ssh hosts` -- list configured remote hosts with connectivity status
 - `tmux-agents mcp serve-stdio` -- MCP over stdio (for Claude Code local)
 - `tmux-agents mcp serve-http [--host H] [--port P] [--no-safe-mode] [--auth-token T]` -- MCP over HTTP
 
-## MCP tools (11 total)
+## MCP tools (17 total, all accept optional `host` param for remote targeting)
 - `ping` -- health check
 - `list_inventory(socket_filter?)` -- full inventory snapshot
 - `list_agents(kind?, socket_filter?)` -- list only detected agent panes
@@ -86,6 +96,7 @@ monitoring, and orchestrating AI agents running in tmux panes.
 - `send_text(pane_id, text)` -- send literal text to a pane
 - `send_keys(pane_id, keys)` -- send key names (Enter, C-c, etc.)
 - `set_metadata(pane_id, agent_kind, profile?)` -- tag a pane with agent metadata
+- `list_hosts()` -- list configured remote hosts with connectivity status
 
 ## MCP server configuration
 - **Safe mode** (default for HTTP): omits destructive tools entirely (terminate_target)
@@ -95,6 +106,7 @@ monitoring, and orchestrating AI agents running in tmux panes.
 
 ## Detection system
 - Three-pass detection: (1) explicit @tmux-agents.meta metadata, (2) psutil process-tree walk, (3) tmux hints (weak)
+- For remote panes, Pass 2 uses `get_remote_process_tree()` via SSH `ps` instead of psutil
 - Managed panes (spawned by tmux-agents) get EXPLICIT/STRONG classification
 - Unmanaged agent panes detected via process name in tree → PROCESS_TREE/STRONG
 - Supported agents: claude (process "claude"), codex (process "codex"), gemini (process "gemini")
@@ -125,5 +137,18 @@ monitoring, and orchestrating AI agents running in tmux panes.
 - `tag_pane` writes/merges @tmux-agents.meta metadata
 - Three safety classes: inspection (list/inspect/capture/delta), interaction (send/spawn), destructive (kill)
 
+## SSH remote support
+- SSH Host alias from ~/.ssh/config is the machine identifier (e.g. "enterprise-a")
+- `RemoteHostConfig` in config defines remote hosts with alias, display_name, extra sockets
+- `RemoteCommandRunner` wraps tmux commands in SSH: `ssh <alias> tmux ...`
+- SSH ControlMaster=auto with ControlPersist=60s for connection multiplexing
+- BatchMode=yes to fail fast on auth prompts
+- `get_runner(host)` factory dispatches local CommandRunner vs RemoteCommandRunner
+- `host: str | None` on ServerRef — None means local, string means SSH alias
+- `--host` top-level CLI option threads host through all commands
+- `get_inventory(host_filter=)` filters by host; `"local"` = local only, `None` = all
+- Capture state keyed by `(host_or_local, pane_id)` to avoid cross-host collisions
+- All services accept `host` parameter: capture, input, channels, detection
+
 ## Milestones
-See PLAN.md for full milestone plan. All milestones (M0-M12) complete.
+See PLAN.md for full milestone plan. All milestones (M0-M15) complete.

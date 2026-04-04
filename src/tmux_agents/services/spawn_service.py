@@ -20,7 +20,7 @@ from tmux_agents.errors import (
 from tmux_agents.logging import get_logger
 from tmux_agents.models import PaneSnapshot
 from tmux_agents.services.inventory_service import inspect_pane
-from tmux_agents.tmux.command_runner import CommandRunner
+from tmux_agents.tmux.command_runner import CommandRunner, get_runner
 from tmux_agents.tmux.metadata_store import write_pane_metadata
 from tmux_agents.tmux.socket_discovery import _socket_dir
 
@@ -40,6 +40,7 @@ def spawn_agent(
     socket_name: str | None = None,
     socket_path: str | None = None,
     transport: str = "cli",
+    host: str | None = None,
     # Orchestration
     target_session: str | None = None,
     split_direction: str | None = None,
@@ -53,6 +54,7 @@ def spawn_agent(
     """Spawn a managed agent session. Dispatches to agent-specific logic.
 
     Args:
+        host: SSH host alias for remote spawn. None for local.
         target_session: If set, spawn into this existing session as a new
             window instead of creating a new session.
         split_direction: If set ("horizontal" or "vertical"), split the first
@@ -70,6 +72,7 @@ def spawn_agent(
             socket_path=socket_path,
             extra_args=extra_args,
             transport=transport,
+            host=host,
             target_session=target_session,
             split_direction=split_direction,
         )
@@ -81,6 +84,7 @@ def spawn_agent(
             socket_path=socket_path,
             extra_args=extra_args,
             transport=transport,
+            host=host,
             target_session=target_session,
             split_direction=split_direction,
         )
@@ -92,6 +96,7 @@ def spawn_agent(
             socket_path=socket_path,
             extra_args=extra_args,
             transport=transport,
+            host=host,
             target_session=target_session,
             split_direction=split_direction,
         )
@@ -118,6 +123,7 @@ def _finalize_spawn(
     transport: str,
     socket_name: str | None,
     socket_path: str | None,
+    host: str | None = None,
     extra_metadata: dict[str, Any] | None = None,
 ) -> PaneSnapshot:
     """Write metadata, inject env vars, and return snapshot for a spawned pane."""
@@ -141,19 +147,21 @@ def _finalize_spawn(
         "spawn_transport": transport,
         "hooks_injected": agent_kind == "claude",
     }
+    if host:
+        metadata["host"] = host
     if extra_metadata:
         metadata.update(extra_metadata)
 
     write_pane_metadata(runner, pane_id, metadata)
-    log.info("agent_spawned", kind=agent_kind, session=session_name, pane=pane_id)
+    log.info("agent_spawned", kind=agent_kind, session=session_name, pane=pane_id, host=host)
 
-    resolved_socket = _resolve_socket_path(socket_name, socket_path)
+    resolved_socket = _resolve_socket_path(socket_name, socket_path, host=host)
     from tmux_agents.config import TmuxAgentsConfig
 
     config = TmuxAgentsConfig(extra_socket_paths=[resolved_socket] if resolved_socket else [])
     # Filter by socket name to avoid pane ID collisions across servers
     sock_name = Path(resolved_socket).name if resolved_socket else None
-    return inspect_pane(pane_id, config, socket_filter=sock_name)
+    return inspect_pane(pane_id, config, socket_filter=sock_name, host_filter=host)
 
 
 def _spawn_detached(
@@ -165,11 +173,12 @@ def _spawn_detached(
     socket_name: str | None,
     socket_path: str | None,
     transport: str,
+    host: str | None = None,
     extra_metadata: dict[str, Any] | None = None,
 ) -> PaneSnapshot:
     """Create a detached tmux session, write metadata, return snapshot."""
-    work_dir = str(Path(cwd).resolve()) if cwd else str(Path.cwd())
-    runner = CommandRunner(socket_name=socket_name, socket_path=socket_path)
+    work_dir = str(Path(cwd).resolve()) if cwd and not host else (cwd or str(Path.cwd()))
+    runner = get_runner(host, socket_name=socket_name, socket_path=socket_path)
 
     result = runner.run("new-session", "-d", "-s", session_name, "-n", "main", "-c", work_dir, cmd)
     if not result.ok:
@@ -177,7 +186,7 @@ def _spawn_detached(
             ErrorEnvelope(
                 code=ErrorCode.SPAWN_FAILED,
                 message=f"Failed to create session '{session_name}': {' '.join(result.stderr)}",
-                details={"session_name": session_name, "stderr": result.stderr},
+                details={"session_name": session_name, "stderr": result.stderr, "host": host},
                 context=ErrorContext(operation=f"spawn_{agent_kind}"),
             )
         )
@@ -188,7 +197,7 @@ def _spawn_detached(
             ErrorEnvelope(
                 code=ErrorCode.SPAWN_FAILED,
                 message=f"Session created but no pane in '{session_name}'",
-                details={"session_name": session_name},
+                details={"session_name": session_name, "host": host},
                 context=ErrorContext(operation=f"spawn_{agent_kind}"),
             )
         )
@@ -203,6 +212,7 @@ def _spawn_detached(
         transport=transport,
         socket_name=socket_name,
         socket_path=socket_path,
+        host=host,
         extra_metadata=extra_metadata,
     )
 
@@ -216,11 +226,12 @@ def _spawn_into_window(
     socket_name: str | None,
     socket_path: str | None,
     transport: str,
+    host: str | None = None,
     extra_metadata: dict[str, Any] | None = None,
 ) -> PaneSnapshot:
     """Create a new window in an existing session."""
-    work_dir = str(Path(cwd).resolve()) if cwd else str(Path.cwd())
-    runner = CommandRunner(socket_name=socket_name, socket_path=socket_path)
+    work_dir = str(Path(cwd).resolve()) if cwd and not host else (cwd or str(Path.cwd()))
+    runner = get_runner(host, socket_name=socket_name, socket_path=socket_path)
 
     result = runner.run(
         "new-window",
@@ -241,7 +252,7 @@ def _spawn_into_window(
                 code=ErrorCode.SPAWN_FAILED,
                 message=f"Failed to create window in '{target_session}': "
                 f"{' '.join(result.stderr)}",
-                details={"target_session": target_session, "stderr": result.stderr},
+                details={"target_session": target_session, "stderr": result.stderr, "host": host},
                 context=ErrorContext(operation=f"spawn_{agent_kind}"),
             )
         )
@@ -256,6 +267,7 @@ def _spawn_into_window(
         transport=transport,
         socket_name=socket_name,
         socket_path=socket_path,
+        host=host,
         extra_metadata=extra_metadata,
     )
 
@@ -270,11 +282,12 @@ def _spawn_into_split(
     socket_name: str | None,
     socket_path: str | None,
     transport: str,
+    host: str | None = None,
     extra_metadata: dict[str, Any] | None = None,
 ) -> PaneSnapshot:
     """Split a pane in an existing session."""
-    work_dir = str(Path(cwd).resolve()) if cwd else str(Path.cwd())
-    runner = CommandRunner(socket_name=socket_name, socket_path=socket_path)
+    work_dir = str(Path(cwd).resolve()) if cwd and not host else (cwd or str(Path.cwd()))
+    runner = get_runner(host, socket_name=socket_name, socket_path=socket_path)
 
     split_flag = "-h" if split_direction == "horizontal" else "-v"
     result = runner.run(
@@ -298,6 +311,7 @@ def _spawn_into_split(
                     "target_session": target_session,
                     "split_direction": split_direction,
                     "stderr": result.stderr,
+                    "host": host,
                 },
                 context=ErrorContext(operation=f"spawn_{agent_kind}"),
             )
@@ -313,6 +327,7 @@ def _spawn_into_split(
         transport=transport,
         socket_name=socket_name,
         socket_path=socket_path,
+        host=host,
         extra_metadata=extra_metadata,
     )
 
@@ -329,6 +344,7 @@ def _route_spawn(
     socket_name: str | None,
     socket_path: str | None,
     transport: str,
+    host: str | None = None,
     target_session: str | None = None,
     split_direction: str | None = None,
     extra_metadata: dict[str, Any] | None = None,
@@ -344,6 +360,7 @@ def _route_spawn(
             socket_name=socket_name,
             socket_path=socket_path,
             transport=transport,
+            host=host,
             extra_metadata=extra_metadata,
         )
     if target_session:
@@ -355,6 +372,7 @@ def _route_spawn(
             socket_name=socket_name,
             socket_path=socket_path,
             transport=transport,
+            host=host,
             extra_metadata=extra_metadata,
         )
     return _spawn_detached(
@@ -365,6 +383,7 @@ def _route_spawn(
         socket_name=socket_name,
         socket_path=socket_path,
         transport=transport,
+        host=host,
         extra_metadata=extra_metadata,
     )
 
@@ -381,6 +400,7 @@ def spawn_claude(
     socket_path: str | None = None,
     extra_args: list[str] | None = None,
     transport: str = "cli",
+    host: str | None = None,
     target_session: str | None = None,
     split_direction: str | None = None,
 ) -> PaneSnapshot:
@@ -414,6 +434,7 @@ def spawn_claude(
         socket_name=socket_name,
         socket_path=socket_path,
         transport=transport,
+        host=host,
         target_session=target_session,
         split_direction=split_direction,
         extra_metadata=extra,
@@ -428,6 +449,7 @@ def spawn_codex(
     socket_path: str | None = None,
     extra_args: list[str] | None = None,
     transport: str = "cli",
+    host: str | None = None,
     target_session: str | None = None,
     split_direction: str | None = None,
 ) -> PaneSnapshot:
@@ -443,6 +465,7 @@ def spawn_codex(
         socket_name=socket_name,
         socket_path=socket_path,
         transport=transport,
+        host=host,
         target_session=target_session,
         split_direction=split_direction,
     )
@@ -456,6 +479,7 @@ def spawn_gemini(
     socket_path: str | None = None,
     extra_args: list[str] | None = None,
     transport: str = "cli",
+    host: str | None = None,
     target_session: str | None = None,
     split_direction: str | None = None,
 ) -> PaneSnapshot:
@@ -471,6 +495,7 @@ def spawn_gemini(
         socket_name=socket_name,
         socket_path=socket_path,
         transport=transport,
+        host=host,
         target_session=target_session,
         split_direction=split_direction,
     )
@@ -484,9 +509,10 @@ def kill_session(
     *,
     socket_name: str | None = None,
     socket_path: str | None = None,
+    host: str | None = None,
 ) -> bool:
     """Kill a tmux session by ID or name."""
-    runner = CommandRunner(socket_name=socket_name, socket_path=socket_path)
+    runner = get_runner(host, socket_name=socket_name, socket_path=socket_path)
     result = runner.run("kill-session", "-t", session_id)
     return result.ok
 
@@ -533,11 +559,17 @@ def _generate_session_name(
 def _resolve_socket_path(
     socket_name: str | None,
     socket_path: str | None,
+    *,
+    host: str | None = None,
 ) -> str | None:
     if socket_path:
         return socket_path
     if socket_name:
+        if host:
+            return f"/tmp/tmux-remote/{socket_name}"
         return str(_socket_dir() / socket_name)
+    if host:
+        return None
     default = _socket_dir() / "default"
     if default.exists():
         return str(default)

@@ -516,9 +516,78 @@ Evaluate channel integration only after the hook bridge is stable. Channels are 
 * MCP: `send_channel_message`, `read_channel_messages` tools. **DONE**
 * 240 total tests, 9 new M12 tests. All milestones (M0-M12) complete.
 
+## Remote machine support
+
+### M13. SSH transport foundation -- config, refs, and remote command runner -- COMPLETE
+
+**Objective:** extend the transport layer so that `CommandRunner` can execute tmux commands on remote machines over SSH, using the SSH `Host` alias from `~/.ssh/config` as the machine identifier. Local-only usage must not regress.
+
+**Implementation slices**
+
+* Add `host: str | None = None` field to `ServerRef` in `refs.py`. `None` means local (backward compatible). All existing `ServerRef` construction sites pass no `host`, so they default to local. **DONE**
+* Add `RemoteHostConfig` model and `hosts: list[RemoteHostConfig]` field to `TmuxAgentsConfig` in `config.py`. Each entry carries `alias` (SSH Host value, e.g. `enterprise-a`), optional `display_name`, and per-host `extra_socket_paths` and `extra_socket_names`. **DONE**
+* Add SSH error types to `errors.py`: `SSH_CONNECTION_FAILED`, `SSH_AUTH_FAILED`, `SSH_HOST_UNKNOWN`, `SSH_TIMEOUT` error codes and `SSHError` exception class. **DONE**
+* Create `ssh/config_parser.py` with `list_ssh_hosts()` and `validate_host_alias()` parsing `~/.ssh/config`. **DONE**
+* Create `ssh/runner.py` with `RemoteCommandRunner` — same interface as `CommandRunner`, wraps commands in `ssh <alias> tmux ...` with `ControlMaster=auto`, `BatchMode=yes`, `ConnectTimeout=5`, `ControlPersist=60s`. Error classification from stderr: "Permission denied" → `SSH_AUTH_FAILED`, "Could not resolve hostname" → `SSH_HOST_UNKNOWN`, timeout → `SSH_TIMEOUT`. **DONE**
+* Add `get_runner(host, *, socket_name, socket_path)` factory function in `command_runner.py` that dispatches to `CommandRunner` (local) or `RemoteCommandRunner` (remote). **DONE**
+* Add `--host` option to CLI group and `ssh check <host>` debug command. **DONE**
+
+**Exit criteria**
+
+* `RemoteCommandRunner` can execute `tmux list-sessions` on a reachable remote host via SSH and return `TmuxResult`. **DONE**
+* SSH failures produce structured `SSHError` with appropriate `ErrorCode`. **DONE**
+* `ServerRef(host="enterprise-a")` round-trips through JSON preserving the host field. **DONE**
+* `ServerRef(host=None)` is fully backward compatible with all existing code. **DONE**
+* `tmux-agents ssh check enterprise-a` prints version and reachability status. **DONE**
+* All 240 existing tests pass unchanged. **DONE** (280 total: 240 existing + 40 new M13 tests)
+
+### M14. Remote discovery, inventory, and detection -- COMPLETE
+
+**Objective:** discover tmux servers on configured remote hosts, collect inventory from them, and detect agents. Remote panes appear in the same `InventorySnapshot` alongside local panes with their host clearly identified.
+
+**Implementation slices**
+
+* Extend `discover_sockets()` in `socket_discovery.py` to probe configured remote hosts via `RemoteCommandRunner`, bypassing local `Path.exists()` checks. Unreachable hosts log a warning and are skipped. **DONE**
+* Extend `get_inventory()` in `inventory_service.py` to merge remote inventory into the same `InventorySnapshot`; add `host_filter` parameter. **DONE**
+* Create `process/remote_inspector.py` with `get_remote_process_tree(host, root_pid)` via `ssh <host> ps -eo pid,ppid,comm`. Parse output into `ProcessInfo` list. **DONE**
+* Update detection service: Pass 2 checks `pane.ref.server.host`; if remote, calls `get_remote_process_tree()` instead of psutil. **DONE**
+* Change capture service `_pane_states` key from `pane_id` to `(host or "local", pane_id)` tuple. Add `host` param to `capture_pane()`, `read_pane_delta()`, `wait_for_pattern()`. **DONE**
+* Thread `host` through all service functions and `_get_runner()` helpers via the runner factory. **DONE**
+* Thread `--host` into all CLI subcommands. **DONE**
+
+**Exit criteria**
+
+* `tmux-agents list` shows both local and remote servers when hosts are configured. **DONE**
+* `tmux-agents list --host enterprise-a` filters to that host; `--host local` shows only local. **DONE**
+* Remote agent detection works via SSH-based process tree. **DONE**
+* Pane `%0` on `enterprise-a` and `%0` locally maintain independent capture state. **DONE**
+* Unreachable hosts produce a warning and are skipped without failing the inventory. **DONE**
+* All pre-existing tests pass. **DONE** (308 total: 240 original + 40 M13 + 28 M14)
+
+### M15. Remote operations, full CLI/MCP surface, and end-to-end -- COMPLETE
+
+**Objective:** enable all interactive operations (spawn, input, capture, channels, hooks) on remote machines and expose `host` through the complete MCP tool surface.
+
+**Implementation slices**
+
+* Extend spawn service with `host` parameter; remote spawn uses `RemoteCommandRunner`. **DONE**
+* Add `host: str | None = None` parameter to all 16 MCP tools; add new `list_hosts()` tool for LLM discoverability. **DONE**
+* Add CLI `ssh hosts` command listing configured hosts with connectivity status. **DONE**
+* Error enrichment: SSH failures mid-operation include `host` in error details. **DONE**
+* Update README.md, CLAUDE.md, PLAN.md with remote usage documentation. **DONE**
+
+**Exit criteria**
+
+* `tmux-agents spawn claude --host enterprise-a --cwd /home/user/project` spawns remotely and returns pane snapshot with `host: "enterprise-a"`. **DONE**
+* All 16+ MCP tools accept and correctly handle `host` parameter. **DONE** (17 tools: 16 with host + list_hosts)
+* `list_hosts` MCP tool returns configured hosts with reachability. **DONE**
+* Cross-host channel messaging works (local → remote). **DONE** (host param threaded to channel service)
+* SSH failures produce structured errors with `host` in details. **DONE**
+* All pre-existing tests pass (local-only not regressed). **DONE** (316 total: 240 original + 40 M13 + 28 M14 + 8 M15)
+
 ---
 
-All milestones (M0-M12) are now complete. The project is feature-complete per the original design document.
+All milestones (M0-M15) are now complete. The project supports both local and remote tmux agent management via SSH.
 
 [1]: https://github.com/tmux/tmux/wiki/Control-Mode "https://github.com/tmux/tmux/wiki/Control-Mode"
 [2]: https://man7.org/linux/man-pages/man1/tmux.1.html "https://man7.org/linux/man-pages/man1/tmux.1.html"

@@ -17,8 +17,8 @@ from tmux_agents.models import (
     InventorySnapshot,
     PaneSnapshot,
 )
-from tmux_agents.process.inspector import get_process_tree
-from tmux_agents.tmux.command_runner import CommandRunner
+from tmux_agents.process.inspector import ProcessInfo, get_process_tree
+from tmux_agents.tmux.command_runner import CommandRunner, get_runner
 from tmux_agents.tmux.metadata_store import read_hook_state, read_pane_metadata
 
 log = get_logger(__name__)
@@ -45,7 +45,8 @@ def detect_pane(
 
     # Pass 2: process-tree classification
     if pane.runtime.pane_pid:
-        info = _detect_from_process_tree(pane.runtime.pane_pid)
+        host = pane.ref.server.host
+        info = _detect_from_process_tree(pane.runtime.pane_pid, host=host)
         if info is not None:
             return info
 
@@ -66,7 +67,10 @@ def detect_inventory(
     Mutates pane.agent in place for efficiency.
     """
     for server in inventory.servers:
-        runner = CommandRunner(socket_path=server.ref.server.socket_path)
+        runner = get_runner(
+            server.ref.server.host,
+            socket_path=server.ref.server.socket_path,
+        )
         for session in server.sessions:
             for window in session.windows:
                 for pane in window.panes:
@@ -103,9 +107,23 @@ def _detect_from_metadata(
     )
 
 
-def _detect_from_process_tree(pane_pid: int) -> AgentInfo | None:
-    """Pass 2: walk process tree and match against registered profiles."""
-    tree = get_process_tree(pane_pid)
+def _detect_from_process_tree(
+    pane_pid: int,
+    *,
+    host: str | None = None,
+) -> AgentInfo | None:
+    """Pass 2: walk process tree and match against registered profiles.
+
+    For remote hosts, uses SSH-based ``ps`` instead of local psutil.
+    """
+    tree: list[ProcessInfo]
+    if host:
+        from tmux_agents.process.remote_inspector import get_remote_process_tree
+
+        tree = get_remote_process_tree(host, pane_pid)
+    else:
+        tree = get_process_tree(pane_pid)
+
     if not tree:
         return None
 

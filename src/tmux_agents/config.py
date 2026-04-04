@@ -31,11 +31,23 @@ class LoggingConfig(BaseModel):
     format: str = "json"
 
 
+class RemoteHostConfig(BaseModel):
+    """Configuration for a remote machine reachable via SSH."""
+
+    alias: str = Field(..., description="SSH Host alias from ~/.ssh/config, e.g. 'enterprise-a'")
+    display_name: str | None = Field(
+        default=None, description="Human-friendly name; defaults to alias"
+    )
+    extra_socket_paths: list[str] = Field(default_factory=list)
+    extra_socket_names: list[str] = Field(default_factory=list)
+
+
 class TmuxAgentsConfig(BaseModel):
     """Root configuration object."""
 
     extra_socket_paths: list[str] = Field(default_factory=list)
     extra_socket_names: list[str] = Field(default_factory=list)
+    hosts: list[RemoteHostConfig] = Field(default_factory=list)
     mcp: McpConfig = Field(default_factory=McpConfig)
     logging: LoggingConfig = Field(default_factory=LoggingConfig)
 

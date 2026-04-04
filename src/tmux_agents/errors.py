@@ -38,6 +38,12 @@ class ErrorCode(StrEnum):
     CAPTURE_FAILED = "capture_failed"
     PATTERN_TIMEOUT = "pattern_timeout"
 
+    # SSH-specific
+    SSH_CONNECTION_FAILED = "ssh_connection_failed"
+    SSH_AUTH_FAILED = "ssh_auth_failed"
+    SSH_HOST_UNKNOWN = "ssh_host_unknown"
+    SSH_TIMEOUT = "ssh_timeout"
+
     # MCP-specific
     MCP_TRANSPORT_ERROR = "mcp_transport_error"
 
@@ -84,3 +90,7 @@ class PaneNotFoundError(TmuxAgentsError):
 
 class PaneDeadError(TmuxAgentsError):
     """Raised when an operation targets a dead pane."""
+
+
+class SSHError(TmuxAgentsError):
+    """Raised when an SSH operation fails (connection, auth, timeout)."""

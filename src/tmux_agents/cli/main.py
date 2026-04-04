@@ -30,11 +30,17 @@ from tmux_agents.logging import configure_logging
     type=click.Choice(["DEBUG", "INFO", "WARNING", "ERROR"], case_sensitive=False),
     help="Set log level (logs always go to stderr).",
 )
+@click.option(
+    "--host",
+    default=None,
+    help="Target a remote host by SSH alias (from ~/.ssh/config). None = local.",
+)
 @click.pass_context
-def cli(ctx: click.Context, output_json: bool, log_level: str) -> None:
+def cli(ctx: click.Context, output_json: bool, log_level: str, host: str | None) -> None:
     """tmux-agents: discover, monitor, and orchestrate AI agents in tmux."""
     ctx.ensure_object(dict)
     ctx.obj["output_json"] = output_json
+    ctx.obj["host"] = host
     ctx.obj["config"] = load_config()
     configure_logging(level=log_level, fmt="json" if output_json else "console")
 
@@ -144,8 +150,10 @@ def channels_send(ctx: click.Context, sender: str, receiver: str, message: str) 
     """Send a message from one pane to another."""
     from tmux_agents.services.channel_service import send_message
 
+    host = ctx.obj["host"]
+
     try:
-        ok = send_message(sender, receiver, message)
+        ok = send_message(sender, receiver, message, host=host)
     except Exception as exc:
         _render_error(exc)
         sys.exit(1)
@@ -166,9 +174,10 @@ def channels_read(ctx: click.Context, pane: str) -> None:
     from tmux_agents.services.channel_service import read_messages
 
     output_json = ctx.obj["output_json"]
+    host = ctx.obj["host"]
 
     try:
-        msg = read_messages(pane)
+        msg = read_messages(pane, host=host)
     except Exception as exc:
         _render_error(exc)
         sys.exit(1)
@@ -208,6 +217,110 @@ def channels_peers(ctx: click.Context) -> None:
         click.echo("No managed panes found.")
 
 
+# -- SSH commands -------------------------------------------------------------
+
+
+@cli.group()
+def ssh() -> None:
+    """SSH remote host management."""
+
+
+@ssh.command("check")
+@click.argument("host")
+@click.pass_context
+def ssh_check(ctx: click.Context, host: str) -> None:
+    """Check SSH connectivity and remote tmux version for a host."""
+    import json as _json
+
+    from tmux_agents.ssh.config_parser import validate_host_alias
+    from tmux_agents.ssh.runner import RemoteCommandRunner, ssh_reachable
+    from tmux_agents.tmux.command_runner import parse_version
+
+    output_json = ctx.obj["output_json"]
+    result: dict[str, object] = {"host": host}
+
+    # 1. Check SSH config
+    in_config = validate_host_alias(host)
+    result["in_ssh_config"] = in_config
+    if not in_config and not output_json:
+        click.echo(f"Warning: '{host}' not found in ~/.ssh/config (may still work)", err=True)
+
+    # 2. Check reachability
+    reachable = ssh_reachable(host)
+    result["reachable"] = reachable
+    if not reachable:
+        result["tmux_version"] = None
+        if output_json:
+            click.echo(_json.dumps(result, indent=2))
+        else:
+            click.echo(f"Host '{host}': UNREACHABLE")
+        return
+
+    # 3. Check remote tmux version
+    try:
+        runner = RemoteCommandRunner(host)
+        version_result = runner.run("-V")
+        if version_result.ok:
+            version = parse_version(version_result.output)
+            result["tmux_version"] = str(version)
+        else:
+            result["tmux_version"] = None
+            result["error"] = "tmux not found on remote host"
+    except Exception as exc:
+        result["tmux_version"] = None
+        result["error"] = str(exc)
+
+    if output_json:
+        click.echo(_json.dumps(result, indent=2))
+    else:
+        status = "OK" if result.get("tmux_version") else "tmux not found"
+        ver = result.get("tmux_version", "N/A")
+        click.echo(f"Host '{host}': {status} (tmux {ver})")
+
+
+@ssh.command("hosts")
+@click.pass_context
+def ssh_hosts(ctx: click.Context) -> None:
+    """List configured remote hosts with connectivity status."""
+    import json as _json
+
+    from tmux_agents.ssh.runner import RemoteCommandRunner, ssh_reachable
+    from tmux_agents.tmux.command_runner import parse_version
+
+    config = ctx.obj["config"]
+    output_json = ctx.obj["output_json"]
+
+    hosts_info: list[dict] = []
+    for h in config.hosts:
+        info: dict[str, object] = {
+            "alias": h.alias,
+            "display_name": h.display_name or h.alias,
+        }
+        reachable = ssh_reachable(h.alias)
+        info["reachable"] = reachable
+        if reachable:
+            try:
+                runner = RemoteCommandRunner(h.alias)
+                ver_result = runner.run("-V")
+                ver = parse_version(ver_result.output) if ver_result.ok else None
+                info["tmux_version"] = ver.raw if ver else None
+            except Exception:
+                info["tmux_version"] = None
+        else:
+            info["tmux_version"] = None
+        hosts_info.append(info)
+
+    if output_json:
+        click.echo(_json.dumps(hosts_info, indent=2))
+    elif hosts_info:
+        for h in hosts_info:
+            status = "OK" if h["reachable"] else "UNREACHABLE"
+            ver = h.get("tmux_version") or "N/A"
+            click.echo(f"  {h['alias']}  {status}  tmux={ver}")
+    else:
+        click.echo("No remote hosts configured.")
+
+
 # -- Inventory commands ------------------------------------------------------
 
 
@@ -221,9 +334,10 @@ def list_cmd(ctx: click.Context, kind: str | None, socket: str | None) -> None:
 
     config = ctx.obj["config"]
     output_json = ctx.obj["output_json"]
+    host = ctx.obj["host"]
 
     try:
-        inventory = get_inventory(config, socket_filter=socket)
+        inventory = get_inventory(config, socket_filter=socket, host_filter=host)
     except Exception as exc:
         _render_error(exc)
         sys.exit(1)
@@ -250,6 +364,7 @@ def inspect_cmd(ctx: click.Context, pane: str, socket: str | None, preview: bool
     """Inspect a specific pane in detail."""
     config = ctx.obj["config"]
     output_json = ctx.obj["output_json"]
+    host = ctx.obj["host"]
 
     try:
         if preview:
@@ -257,7 +372,7 @@ def inspect_cmd(ctx: click.Context, pane: str, socket: str | None, preview: bool
 
             from tmux_agents.services.inventory_service import preview_pane
 
-            data = preview_pane(pane, config, socket_filter=socket)
+            data = preview_pane(pane, config, socket_filter=socket, host_filter=host)
             if output_json:
                 click.echo(_json.dumps(data, indent=2))
             else:
@@ -265,7 +380,7 @@ def inspect_cmd(ctx: click.Context, pane: str, socket: str | None, preview: bool
         else:
             from tmux_agents.services.inventory_service import inspect_pane
 
-            snap = inspect_pane(pane, config, socket_filter=socket)
+            snap = inspect_pane(pane, config, socket_filter=socket, host_filter=host)
             if output_json:
                 click.echo(snap.model_dump_json(indent=2))
             else:
@@ -313,6 +428,7 @@ def spawn_cmd(
     from tmux_agents.services.spawn_service import spawn_agent
 
     output_json = ctx.obj["output_json"]
+    host = ctx.obj["host"]
 
     try:
         snap = spawn_agent(
@@ -325,6 +441,7 @@ def spawn_cmd(
             cwd=cwd,
             socket_name=socket,
             transport="cli",
+            host=host,
             target_session=target_session,
             split_direction=split_direction,
         )
@@ -346,7 +463,8 @@ def kill_cmd(ctx: click.Context, session: str, socket: str | None) -> None:
     """Kill a tmux session."""
     from tmux_agents.services.spawn_service import kill_session
 
-    ok = kill_session(session, socket_name=socket)
+    host = ctx.obj["host"]
+    ok = kill_session(session, socket_name=socket, host=host)
     if ok:
         click.echo(f"Session '{session}' killed.")
     else:
@@ -389,6 +507,7 @@ def capture_cmd(
     from tmux_agents.services.capture_service import capture_pane
 
     output_json = ctx.obj["output_json"]
+    host = ctx.obj["host"]
 
     try:
         result = capture_pane(
@@ -398,6 +517,7 @@ def capture_cmd(
             start=start,
             end=end,
             screen=ScreenTarget(screen),
+            host=host,
         )
     except Exception as exc:
         _render_error(exc)
@@ -439,6 +559,7 @@ def delta_cmd(
     from tmux_agents.services.capture_service import read_pane_delta
 
     output_json = ctx.obj["output_json"]
+    host = ctx.obj["host"]
 
     try:
         result = read_pane_delta(
@@ -446,6 +567,7 @@ def delta_cmd(
             after_seq=after_seq,
             max_lines=max_lines,
             screen=ScreenTarget(screen),
+            host=host,
         )
     except Exception as exc:
         _render_error(exc)
@@ -487,6 +609,7 @@ def wait_cmd(
     from tmux_agents.services.capture_service import wait_for_pattern
 
     output_json = ctx.obj["output_json"]
+    host = ctx.obj["host"]
 
     try:
         match = wait_for_pattern(
@@ -495,6 +618,7 @@ def wait_cmd(
             timeout_ms=timeout,
             poll_interval_ms=poll,
             screen=ScreenTarget(screen),
+            host=host,
         )
     except Exception as exc:
         _render_error(exc)
@@ -518,8 +642,10 @@ def send_text_cmd(ctx: click.Context, pane: str, text: str, socket: str | None) 
     """Send literal text to a pane (no key interpretation)."""
     from tmux_agents.services.input_service import send_text
 
+    host = ctx.obj["host"]
+
     try:
-        ok = send_text(pane, text)
+        ok = send_text(pane, text, host=host)
     except Exception as exc:
         _render_error(exc)
         sys.exit(1)
@@ -541,8 +667,10 @@ def send_keys_cmd(
     """Send key names to a pane (Enter, C-c, Escape, etc.)."""
     from tmux_agents.services.input_service import send_keys
 
+    host = ctx.obj["host"]
+
     try:
-        ok = send_keys(pane, *keys)
+        ok = send_keys(pane, *keys, host=host)
     except Exception as exc:
         _render_error(exc)
         sys.exit(1)
@@ -562,8 +690,10 @@ def tag_cmd(ctx: click.Context, pane: str, agent_kind: str, socket: str | None) 
     """Tag a pane with agent metadata."""
     from tmux_agents.services.input_service import tag_pane
 
+    host = ctx.obj["host"]
+
     try:
-        ok = tag_pane(pane, agent_kind=agent_kind)
+        ok = tag_pane(pane, agent_kind=agent_kind, host=host)
     except Exception as exc:
         _render_error(exc)
         sys.exit(1)
@@ -601,8 +731,9 @@ def _render_inventory_human(inventory):  # type: ignore[no-untyped-def]
         return
 
     for server in inv.servers:
+        host_label = f" @ {server.ref.server.host}" if server.ref.server.host else ""
         click.echo(
-            click.style(f"Server: {server.ref.server.socket_name}", bold=True)
+            click.style(f"Server: {server.ref.server.socket_name}{host_label}", bold=True)
             + f"  ({server.ref.server.socket_path})"
         )
         if not server.sessions:

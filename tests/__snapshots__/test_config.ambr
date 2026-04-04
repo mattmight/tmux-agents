@@ -41,6 +41,48 @@
         'title': 'McpConfig',
         'type': 'object',
       }),
+      'RemoteHostConfig': dict({
+        'description': 'Configuration for a remote machine reachable via SSH.',
+        'properties': dict({
+          'alias': dict({
+            'description': "SSH Host alias from ~/.ssh/config, e.g. 'enterprise-a'",
+            'title': 'Alias',
+            'type': 'string',
+          }),
+          'display_name': dict({
+            'anyOf': list([
+              dict({
+                'type': 'string',
+              }),
+              dict({
+                'type': 'null',
+              }),
+            ]),
+            'default': None,
+            'description': 'Human-friendly name; defaults to alias',
+            'title': 'Display Name',
+          }),
+          'extra_socket_names': dict({
+            'items': dict({
+              'type': 'string',
+            }),
+            'title': 'Extra Socket Names',
+            'type': 'array',
+          }),
+          'extra_socket_paths': dict({
+            'items': dict({
+              'type': 'string',
+            }),
+            'title': 'Extra Socket Paths',
+            'type': 'array',
+          }),
+        }),
+        'required': list([
+          'alias',
+        ]),
+        'title': 'RemoteHostConfig',
+        'type': 'object',
+      }),
     }),
     'description': 'Root configuration object.',
     'properties': dict({
@@ -56,6 +98,13 @@
           'type': 'string',
         }),
         'title': 'Extra Socket Paths',
+        'type': 'array',
+      }),
+      'hosts': dict({
+        'items': dict({
+          '$ref': '#/$defs/RemoteHostConfig',
+        }),
+        'title': 'Hosts',
         'type': 'array',
       }),
       'logging': dict({

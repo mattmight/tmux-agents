@@ -184,6 +184,25 @@ class CommandRunner:
         return result.ok
 
 
+def get_runner(
+    host: str | None = None,
+    *,
+    socket_name: str | None = None,
+    socket_path: str | None = None,
+) -> CommandRunner:
+    """Factory: return a local ``CommandRunner`` or a ``RemoteCommandRunner``.
+
+    When *host* is ``None`` or ``"local"`` the runner targets the local
+    machine.  Otherwise it wraps commands in SSH to the given host alias.
+    """
+    if host is None or host == "local":
+        return CommandRunner(socket_name=socket_name, socket_path=socket_path)
+
+    from tmux_agents.ssh.runner import RemoteCommandRunner
+
+    return RemoteCommandRunner(host, socket_name=socket_name, socket_path=socket_path)  # type: ignore[return-value]
+
+
 def parse_version(raw: str) -> TmuxVersion:
     """Parse a tmux version string like 'tmux 3.4' or 'tmux 3.2a'."""
     m = _VERSION_RE.search(raw)

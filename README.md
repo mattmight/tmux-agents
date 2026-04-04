@@ -1,17 +1,20 @@
 # tmux-agents
 
-Local-first tmux agent orchestration with CLI and MCP server.
+Tmux agent orchestration with CLI and MCP server -- local and remote via SSH.
 
-Discover, monitor, and control AI coding agents (Claude Code, etc.) running in
-tmux sessions -- from the command line or through the Model Context Protocol.
+Discover, monitor, and control AI coding agents (Claude Code, Codex, Gemini)
+running in tmux sessions across multiple machines -- from the command line or
+through the Model Context Protocol.
 
 ## Status
 
-**Feature-complete** -- All milestones (M0-M12) implemented. Discovers tmux
-servers, detects Claude/Codex/Gemini agents, spawns managed sessions (including
+**All milestones complete (M0-M15).** Discovers tmux servers (local and remote
+via SSH), detects Claude/Codex/Gemini agents, spawns managed sessions (including
 into existing windows/splits), captures pane output, reads deltas, sends
 text/keys, waits for patterns, integrates with Claude Code hooks, and provides
 inter-pane channel messaging. Everything exposed via CLI and MCP (stdio + HTTP).
+Remote machine support uses SSH `Host` aliases from `~/.ssh/config`. All MCP
+tools accept an optional `host` parameter.
 See [PLAN.md](PLAN.md) for the design document.
 
 ## Requirements
@@ -97,6 +100,21 @@ tmux-agents hooks generate
 
 # Check hook state on a managed pane
 tmux-agents hooks status --pane %0
+
+# Check SSH connectivity to a remote host
+tmux-agents ssh check enterprise-a
+
+# List configured remote hosts with status
+tmux-agents ssh hosts
+
+# List agents on a remote host
+tmux-agents --host enterprise-a list
+
+# Spawn a Claude agent on a remote host
+tmux-agents --host enterprise-a spawn claude --cwd /home/user/project
+
+# Capture remote pane output
+tmux-agents --host enterprise-a capture --pane %0
 
 # Start MCP server (stdio, for Claude Code)
 tmux-agents mcp serve-stdio

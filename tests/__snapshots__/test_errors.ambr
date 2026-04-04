@@ -21,6 +21,10 @@
           'detection_failed',
           'capture_failed',
           'pattern_timeout',
+          'ssh_connection_failed',
+          'ssh_auth_failed',
+          'ssh_host_unknown',
+          'ssh_timeout',
           'mcp_transport_error',
         ]),
         'title': 'ErrorCode',
@@ -74,8 +78,27 @@
         'type': 'object',
       }),
       'ServerRef': dict({
-        'description': 'Identity of a tmux server by its socket.',
+        'description': '''
+          Identity of a tmux server by its socket.
+          
+          The optional ``host`` field distinguishes remote machines.  When ``None``
+          the server is local.  For remote servers the value is the SSH ``Host``
+          alias from ``~/.ssh/config`` (e.g. ``"enterprise-a"``).
+        ''',
         'properties': dict({
+          'host': dict({
+            'anyOf': list([
+              dict({
+                'type': 'string',
+              }),
+              dict({
+                'type': 'null',
+              }),
+            ]),
+            'default': None,
+            'description': 'SSH Host alias for remote servers, None for local',
+            'title': 'Host',
+          }),
           'socket_name': dict({
             'description': "Short socket name, e.g. 'default'",
             'title': 'Socket Name',

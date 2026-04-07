@@ -11,6 +11,11 @@ install: venv
 	@ln -sf "$(SCRIPT)" "$(BIN_DIR)/tmux-agents"
 	@echo "Installed: $(BIN_DIR)/tmux-agents -> $(SCRIPT)"
 
+link:
+	@mkdir -p "$(BIN_DIR)"
+	@ln -sf "$(SCRIPT)" "$(BIN_DIR)/tmux-agents"
+	@echo "Installed: $(BIN_DIR)/tmux-agents -> $(SCRIPT)"
+
 uninstall:
 	@rm -f "$(BIN_DIR)/tmux-agents"
 	@echo "Removed: $(BIN_DIR)/tmux-agents"

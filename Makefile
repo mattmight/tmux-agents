@@ -16,9 +16,9 @@ uninstall:
 
 venv:
 	@if [ ! -d "$(VENV)" ]; then \
-		python3 -m venv $(VENV); \
+		uv venv $(VENV); \
 	fi
-	@$(VENV)/bin/pip install -q -e "$(PROJECT_DIR)[dev]"
+	@uv pip install -q -e "$(PROJECT_DIR)[dev]"
 
 dev: venv
 

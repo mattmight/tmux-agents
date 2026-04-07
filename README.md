@@ -19,22 +19,28 @@ See [PLAN.md](PLAN.md) for the design document.
 
 ## Requirements
 
-- Python 3.11+
+- [uv](https://docs.astral.sh/uv/) (manages Python 3.11+ automatically)
 - tmux 3.2a+
 - macOS or Linux
 
 ## Installation
 
 ```bash
-pip install tmux-agents
+git clone https://github.com/mattmight/tmux-agents.git
+cd tmux-agents
+uv venv && uv pip install -e .
+```
+
+To add it to your PATH:
+
+```bash
+make install   # symlinks bin/tmux-agents to ~/bin/
 ```
 
 For development:
 
 ```bash
-git clone https://github.com/mattmight/tmux-agents.git
-cd tmux-agents
-pip install -e ".[dev]"
+uv venv && uv pip install -e ".[dev]"
 ```
 
 ## Quick start
@@ -172,7 +178,7 @@ server. Pane IDs change across tmux server restarts.
 ## Development
 
 ```bash
-pip install -e ".[dev]"
+uv pip install -e ".[dev]"
 pytest -v
 ruff check src/ tests/
 ruff format src/ tests/

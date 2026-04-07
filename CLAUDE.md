@@ -6,9 +6,9 @@ monitoring, and orchestrating AI agents running in tmux panes, both locally
 and on remote machines via SSH.
 
 ## Build and run
-- Python 3.11+ required
-- Create venv: `python3 -m venv .venv && source .venv/bin/activate`
-- Install: `pip install -e ".[dev]"`
+- Uses [uv](https://docs.astral.sh/uv/) for Python and dependency management (auto-downloads Python 3.11+)
+- Create venv: `uv venv`
+- Install: `uv pip install -e ".[dev]"`
 - CLI: `tmux-agents --help`
 - MCP stdio: `tmux-agents mcp serve-stdio`
 - MCP HTTP: `tmux-agents mcp serve-http`
